@@ -1,7 +1,19 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright 2016 Open University of the Netherlands
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * This project has received funding from the European Union’s Horizon
+ * 2020 research and innovation programme under grant agreement No 644187.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.ounl.elasticsearchtest;
 
@@ -23,77 +35,17 @@ import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
 import org.elasticsearch.search.SearchHit;
 
-
 /**
  *
  * @author gla
  */
 public class ElasticSearchTest {
     public static void main(String[] args) {
-        //testPutRecord();
-        //testUpdateRecord();
-        testSearchAll();
+        //putRecord();
+        searchAll();
     }
     
-    static void testPutRecord(){
-        try {
-            // Create a client
-            TransportClient client = TransportClient.builder().build()
-                .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
-            
-            // Prepare a document for indexing
-            Map<String, Object> json = new HashMap<String, Object>();
-            json.put("taskid","level2");
-            json.put("trial", 1);
-            json.put("max", 0);
-            json.put("min", 0);
-            json.put("sum", 0);
-            json.put("variance", 0);
-            json.put("mean", 0);
-            json.put("stddev", 0);
-            json.put("skewness", 0);
-            json.put("kurtosis", 0);
-            json.put("n", 1);
-            json.put("normal", false);
-            json.put("help1", 0);
-            json.put("help2", 0);
-            json.put("help3", 0);
-            
-            // Do some indexing (PUT the document)
-            IndexResponse response = client.prepareIndex("perfstat","descriptive")
-                    .setSource(json)
-                    .get();
-            
-            // Prepare an additional document for indexing
-            json.put("taskid","level2");
-            json.put("trial", 2);
-            json.put("max", 0);
-            json.put("min", 0);
-            json.put("sum", 0);
-            json.put("variance", 0);
-            json.put("mean", 0);
-            json.put("stddev", 0);
-            json.put("skewness", 0);
-            json.put("kurtosis", 0);
-            json.put("n", 1);
-            json.put("normal", false);
-            json.put("help1", 0);
-            json.put("help2", 0);
-            json.put("help3", 0);
-            
-            // Indexing an additional document
-            response = client.prepareIndex("perfstat","descriptive")
-                    .setSource(json)
-                    .get();
-            
-            // Finally
-            client.close();    
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-    }
-    
-    static void testUpdateRecord(){
+    static void putRecord(){
         try {
             // Create a client
             TransportClient client = TransportClient.builder().build()
@@ -117,23 +69,21 @@ public class ElasticSearchTest {
             json.put("help2", 0);
             json.put("help3", 0);
             
+            // Define a query
             QueryBuilder qb = boolQuery()
                     .must(termQuery("taskid", json.get("taskid")))
                     .must(termQuery("trial", json.get("trial")));
 
-            // Query to see if the new document already exists
-            SearchResponse response = client.prepareSearch("perfstat")
+            // Query to see if the document already exists
+            SearchResponse searchResponse = client.prepareSearch("perfstat")
                     .setTypes("descriptive")
                     .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
                     .setQuery(qb)
                     .execute().actionGet();
             
-            // Get the found id
-            // Extract individual results from the query
-            SearchHit[] results = response.getHits().getHits();
-            
+            // Try to get the id
             String id = "";
-            Map<String, Object> output = new HashMap<String, Object>();
+            SearchHit[] results = searchResponse.getHits().getHits();
             for (SearchHit hit : results) {
                 
                 if (hit != null) {
@@ -141,8 +91,7 @@ public class ElasticSearchTest {
                 }
             }
             
-            
-            // Do an upsert if a previous document was found else just insert
+            // If a previous document was found do an upsert, else just insert
             if (id != "") {
                 // Upsert
                 IndexRequest indexRequest = new IndexRequest("perfstat","descriptive")
@@ -152,8 +101,10 @@ public class ElasticSearchTest {
                         .upsert(indexRequest);
                 client.update(updateRequest).get();
             } else {
-                // New insert here
-                
+                // Insert
+                IndexResponse indexResponse = client.prepareIndex("perfstat","descriptive")
+                    .setSource(json)
+                    .get();
             }
             
             // Finally
@@ -167,8 +118,12 @@ public class ElasticSearchTest {
         }
     }
     
-    static void testSearchAll(){
+    static void searchAll(){
         try {
+            
+            // The whole show crashes if the index does not exist!
+            
+            
             // Create a client
             TransportClient client = TransportClient.builder().build()
                 .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
